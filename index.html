@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Khmer Chess Online</title>
+<style>
+:root{--bg:#f3ead8;--fg:#1c1511;--card:#fffaf0;--lt:#ecd9aa;--dk:#b8803a;--acc:#8a5a12;--mute:#6b5a45;--sel:#f5d76e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1511;--fg:#f3ead8;--card:#2a201a;--lt:#d8bf86;--dk:#8b5e2a;--acc:#d9a441;--mute:#b9ab94}}
+:root[data-theme="dark"]{--bg:#1c1511;--fg:#f3ead8;--card:#2a201a;--lt:#d8bf86;--dk:#8b5e2a;--acc:#d9a441;--mute:#b9ab94}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+main{max-width:560px;margin:0 auto;padding:20px 14px 40px;display:flex;flex-direction:column;align-items:center;gap:14px}
+h1{margin:8px 0 0;font-size:34px;text-align:center;color:var(--acc)}
+.tag{margin:0;color:var(--mute);text-align:center;font-size:17px;line-height:1.4}
+.card{background:var(--card);border-radius:16px;padding:20px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+input,select{font:inherit;padding:12px;border-radius:10px;border:1.5px solid var(--dk);background:var(--bg);color:var(--fg);width:100%}
+button{font:inherit;font-weight:600;padding:14px;border:0;border-radius:10px;cursor:pointer}
+.go{background:var(--acc);color:#fff}
+[data-theme="dark"] .go,:root:not([data-theme="light"]) .go{color:#1c1511}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .go{color:#fff}}
+.fb{background:#1877f2;color:#fff}
+.alt{background:transparent;border:1.5px solid var(--dk);color:var(--fg)}
+.note{font-size:15px;line-height:1.45;color:var(--mute);background:var(--bg);border-radius:10px;padding:12px}
+.hide{display:none!important}
+.player{display:flex;align-items:center;gap:10px;width:min(92vw,520px)}
+.av{width:38px;height:38px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex:none}
+.av img{width:100%;height:100%;object-fit:cover}
+.player small{color:var(--mute);display:block}
+.board{display:grid;grid-template-columns:repeat(8,1fr);width:min(92vw,520px);aspect-ratio:1;border:4px solid var(--acc);border-radius:8px;overflow:hidden}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;font-size:calc(min(92vw,520px)/8*.74);line-height:1;cursor:pointer;user-select:none}
+.l{background:var(--lt)}.d{background:var(--dk)}
+.lm{box-shadow:inset 0 0 0 100px rgba(245,215,110,.4)}
+.sel{background:var(--sel)!important}
+.mv::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(0,0,0,.3)}
+.mv.cap::after{width:92%;height:92%;background:none;border:4px solid rgba(200,40,40,.75)}
+.pc.w{color:#fff;text-shadow:0 0 2px #000,0 0 2px #000,0 0 3px #000}
+.pc.b{color:#1a1410;text-shadow:0 0 1px rgba(255,255,255,.7)}
+#status{font-weight:700;font-size:19px;min-height:26px;text-align:center}
+.row{display:flex;gap:8px;width:min(92vw,520px)}
+.row>*{flex:1}
+.legend{color:var(--mute);font-size:15px;text-align:center;line-height:1.6;max-width:min(92vw,520px)}
+</style></head>
+<body><main>
+<section id="home" style="display:contents">
+ <h1>Khmer Chess Online</h1>
+ <p class="tag">Ouk Chatrang, free to play. Choose how you want to join.</p>
+ <div class="card">
+  <input id="gname" placeholder="Your name (optional)" maxlength="20" aria-label="Guest name">
+  <button class="go" id="guest">Play as guest</button>
+  <button class="fb" id="fbbtn">Continue with Facebook</button>
+  <div class="note hide" id="fbnote"></div>
+ </div>
+</section>
+<section id="game" class="hide" style="display:contents">
+ <div class="player" id="opp"><div class="av">♞</div><div><b id="oppn">Computer</b><small>Opponent</small></div></div>
+ <div class="board" id="board" role="grid" aria-label="Khmer chess board"></div>
+ <div class="player"><div class="av" id="meav"></div><div><b id="men"></b><small id="mes"></small></div></div>
+ <div id="status" aria-live="polite"></div>
+ <div class="row">
+  <select id="mode" aria-label="Mode"><option value="ai">Vs computer</option><option value="local">Two players, one screen</option></select>
+  <select id="side" aria-label="Side"><option value="w">Play White</option><option value="b">Play Black</option></select>
+ </div>
+ <div class="row"><button class="go" id="newg">New game</button><button class="alt" id="out">Leave</button></div>
+ <p class="legend">♚ Ouk · ♛ Neang · ♝ Khon · ♜ Tuk · ♞ Seh · ♟ Bei<br>Simplified rules: no counting rules, no opening leaps. Pawns promote to Neang on the 6th rank.</p>
+</section>
+</main>
+<script>
+const FB_APP_ID=""; // paste your Meta App ID here when you host this page on your own domain
+const SYM={K:"♚",Q:"♛",B:"♝",R:"♜",N:"♞",P:"♟"},VAL={K:0,Q:20,B:30,R:90,N:50,P:10};
+let b,turn,sel=null,mv=[],last=null,over=false,user=null,mode="ai",me="w",flip=false;
+const $=id=>document.getElementById(id);
+function init(){
+ b=Array.from({length:8},()=>Array(8).fill(null));
+ const w="RNBQKBNR",k="RNBKQBNR";
+ for(let c=0;c<8;c++){
+  b[0][c]="w"+w[c];b[7][c]="b"+k[c];
+  b[(c==3||c==4)?3:2][c]="wP";
+  b[(c==3||c==4)?4:5][c]="bP";
+ }
+}
+function pseudo(b,r,c){
+ const p=b[r][c],col=p[0],t=p[1],o=[],d=col=="w"?1:-1;
+ const add=(y,x)=>{if(y<0||y>7||x<0||x>7)return false;const q=b[y][x];if(q&&q[0]==col)return false;o.push([y,x]);return !q};
+ const dg=[[1,1],[1,-1],[-1,1],[-1,-1]];
+ if(t=="K"){for(let y=-1;y<2;y++)for(let x=-1;x<2;x++)if(y||x)add(r+y,c+x)}
+ else if(t=="Q"){dg.forEach(([y,x])=>add(r+y,c+x))}
+ else if(t=="B"){dg.forEach(([y,x])=>add(r+y,c+x));add(r+d,c);}
+ else if(t=="N"){[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].forEach(([y,x])=>add(r+y,c+x))}
+ else if(t=="R"){[[1,0],[-1,0],[0,1],[0,-1]].forEach(([y,x])=>{for(let i=r+y,j=c+x;add(i,j);i+=y,j+=x);})}
+ else{
+  const y=r+d;
+  if(y>=0&&y<8){
+   if(!b[y][c])o.push([y,c]);
+   [-1,1].forEach(x=>{const q=b[y]&&b[y][c+x];if(q&&q[0]!=col)o.push([y,c+x])});
+  }
+ }
+ return o;
+}
+function apply(b,m){
+ const n=b.map(r=>r.slice());let p=n[m[0]][m[1]];
+ n[m[0]][m[1]]=null;
+ if(p[1]=="P"&&((p[0]=="w"&&m[2]==5)||(p[0]=="b"&&m[2]==2)))p=p[0]+"Q";
+ n[m[2]][m[3]]=p;return n;
+}
+function inCheck(b,col){
+ let kr,kc;
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(b[r][c]==col+"K"){kr=r;kc=c}
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  const p=b[r][c];
+  if(p&&p[0]!=col&&pseudo(b,r,c).some(m=>m[0]==kr&&m[1]==kc))return true;
+ }
+ return false;
+}
+function legal(b,col){
+ const o=[];
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  const p=b[r][c];
+  if(p&&p[0]==col)pseudo(b,r,c).forEach(t=>{const m=[r,c,t[0],t[1]];if(!inCheck(apply(b,m),col))o.push(m)});
+ }
+ return o;
+}
+function ev(b){
+ let s=0;
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  const p=b[r][c];if(!p)continue;
+  const sg=p[0]=="w"?1:-1;
+  let v=VAL[p[1]];
+  if(p[1]=="P")v+=(p[0]=="w"?r-2:5-r)*1.5;
+  v+=(3.5-Math.abs(3.5-c)+3.5-Math.abs(3.5-r))*.3;
+  s+=sg*v;
+ }
+ return s;
+}
+function neg(b,col,d){
+ if(d==0)return (col=="w"?1:-1)*ev(b);
+ const ml=legal(b,col),opp=col=="w"?"b":"w";
+ if(!ml.length)return inCheck(b,col)?-9999-d:0;
+ let best=-1e9;
+ for(const m of ml)best=Math.max(best,-neg(apply(b,m),opp,d-1));
+ return best;
+}
+function aiMove(){
+ const ml=legal(b,turn),opp=turn=="w"?"b":"w";
+ let best=null,bs=-1e9;
+ for(const m of ml){const s=-neg(apply(b,m),opp,2)+Math.random()*3;if(s>bs){bs=s;best=m}}
+ return best;
+}
+function render(){
+ const bd=$("board");bd.innerHTML="";
+ for(let i=0;i<64;i++){
+  const rr=flip?Math.floor(i/8):7-Math.floor(i/8),cc=flip?7-i%8:i%8,p=b[rr][cc];
+  const e=document.createElement("div");
+  let cl="sq "+((rr+cc)%2?"l":"d");
+  if(sel&&sel[0]==rr&&sel[1]==cc)cl+=" sel";
+  if(last&&last.some(q=>q[0]==rr&&q[1]==cc))cl+=" lm";
+  if(mv.some(m=>m[2]==rr&&m[3]==cc))cl+=" mv"+(p?" cap":"");
+  e.className=cl;
+  if(p){const s=document.createElement("span");s.className="pc "+p[0];s.textContent=SYM[p[1]];e.appendChild(s)}
+  e.onclick=()=>click(rr,cc);
+  bd.appendChild(e);
+ }
+ let t;
+ if(over)t=$("status").textContent;
+ else{
+  const chk=inCheck(b,turn)?"Check! ":"";
+  t=chk+(mode=="ai"?(turn==me?"Your move":"Computer is thinking…"):(turn=="w"?"White":"Black")+" to move");
+ }
+ $("status").textContent=t;
+}
+function click(r,c){
+ if(over||(mode=="ai"&&turn!=me))return;
+ const m=mv.find(x=>x[2]==r&&x[3]==c);
+ if(m)return play(m);
+ const p=b[r][c];
+ if(p&&p[0]==turn){sel=[r,c];mv=legal(b,turn).filter(x=>x[0]==r&&x[1]==c)}
+ else{sel=null;mv=[]}
+ render();
+}
+function play(m){
+ b=apply(b,m);last=[[m[0],m[1]],[m[2],m[3]]];
+ const mover=turn;turn=turn=="w"?"b":"w";sel=null;mv=[];
+ const ml=legal(b,turn);
+ if(!ml.length){
+  over=true;
+  if(inCheck(b,turn)){
+   const who=mode=="ai"?(mover==me?"You win":"Computer wins"):(mover=="w"?"White":"Black")+" wins";
+   $("status").textContent="Checkmate. "+who+"!";
+  }else $("status").textContent="Stalemate. It’s a draw.";
+ }
+ render();
+ if(!over&&mode=="ai"&&turn!=me)setTimeout(()=>{const a=aiMove();if(a)play(a)},400);
+}
+function newGame(){
+ mode=$("mode").value;me=$("side").value;
+ $("side").style.display=mode=="ai"?"":"none";
+ flip=mode=="ai"&&me=="b";
+ $("oppn").textContent=mode=="ai"?"Computer":"Friend";
+ init();turn="w";sel=null;mv=[];last=null;over=false;render();
+ if(mode=="ai"&&me=="b")setTimeout(()=>{const a=aiMove();if(a)play(a)},400);
+}
+function start(u){
+ user=u;$("home").classList.add("hide");$("game").classList.remove("hide");
+ $("men").textContent=u.name;$("mes").textContent=u.fb?"Facebook player":"Guest";
+ const av=$("meav");av.innerHTML="";
+ if(u.pic){const i=document.createElement("img");i.alt="";i.src=u.pic;i.onerror=()=>{av.textContent=u.name[0].toUpperCase()};av.appendChild(i)}
+ else av.textContent=u.name[0].toUpperCase();
+ newGame();
+}
+function note(t){const n=$("fbnote");n.textContent=t;n.classList.remove("hide")}
+$("guest").onclick=()=>{
+ let n=$("gname").value.trim();
+ start({name:n||"Guest "+Math.floor(1000+Math.random()*9000)});
+};
+$("fbbtn").onclick=()=>{
+ if(!FB_APP_ID){note("Facebook login is built in but switched off here. It needs your Meta App ID (set FB_APP_ID in the code) and the page hosted on your own domain that is added to your Meta app. Until then, play as a guest.");return}
+ note("Connecting to Facebook…");
+ const s=document.createElement("script");
+ s.src="https://connect.facebook.net/en_US/sdk.js";
+ s.onerror=()=>note("Could not reach Facebook. Check your connection or play as a guest.");
+ s.onload=()=>{
+  FB.init({appId:FB_APP_ID,version:"v19.0",cookie:true});
+  FB.login(r=>{
+   if(!r.authResponse)return note("Facebook login was cancelled.");
+   FB.api("/me",{fields:"name,picture.width(80)"},u=>start({name:u.name,pic:u.picture&&u.picture.data&&u.picture.data.url,fb:true}));
+  },{scope:"public_profile"});
+ };
+ document.head.appendChild(s);
+};
+$("newg").onclick=newGame;
+$("mode").onchange=newGame;$("side").onchange=newGame;
+$("out").onclick=()=>{user=null;$("game").classList.add("hide");$("home").classList.remove("hide")};
+try{const n=localStorage.getItem("kc_name");if(n)$("gname").value=n}catch(e){}
+$("gname").onchange=()=>{try{localStorage.setItem("kc_name",$("gname").value)}catch(e){}};
+</script>
+</body></html>
